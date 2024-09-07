@@ -1,0 +1,30 @@
+[WARNING] ME(214937:47438336003456,MainProcess):2024-08-14-13:57:45.638.972 [mindspore/run_check/_check_version.py:348] Using custom Ascend AI software package (Ascend Data Center Solution) path, package version checking is skipped. Please make sure Ascend AI software package (Ascend Data Center Solution) version is supported. For details, refer to the installation guidelines https://www.mindspore.cn/install
+[WARNING] ME(214937:47438336003456,MainProcess):2024-08-14-13:57:45.639.523 [mindspore/run_check/_check_version.py:456] Can not find ccec_compiler(need by mindspore-ascend). Please check whether the Environment Variable PATH is set. For details, refer to the installation guidelines: https://www.mindspore.cn/install
+[WARNING] ME(214937:47438336003456,MainProcess):2024-08-14-13:57:45.639.625 [mindspore/run_check/_check_version.py:461] Can not find the tbe operator implementation(need by mindspore-ascend). Please check whether the Environment Variable PYTHONPATH is set. For details, refer to the installation guidelines: https://www.mindspore.cn/install
+[WARNING] ME(214937:47438336003456,MainProcess):2024-08-14-13:57:45.639.720 [mindspore/run_check/_check_version.py:468] Can not find driver so(need by mindspore-ascend). Please check whether the Environment Variable LD_LIBRARY_PATH is set. For details, refer to the installation guidelines: https://www.mindspore.cn/install
+[WARNING] ME(214937:47438336003456,MainProcess):2024-08-14-13:57:45.639.787 [mindspore/run_check/_check_version.py:473] Can not find opp path (need by mindspore-ascend). Please check whether the Environment Variable ASCEND_OPP_PATH is set. For details, refer to the installation guidelines: https://www.mindspore.cn/install
+{'data_dir': 'Train dataset directory.', 'per_batch_size': 'Batch size for Training.', 'pretrained_backbone': 'The ckpt file of CspDarkNet53.', 'resume_yolov5': 'The ckpt file of YOLOv5, which used to fine tune.', 'pretrained_checkpoint': 'The ckpt file of YOLOv5CspDarkNet53.', 'lr_scheduler': 'Learning rate scheduler, options: exponential, cosine_annealing.', 'lr': 'Learning rate.', 'lr_epochs': "Epoch of changing of lr changing, split with ','.", 'lr_gamma': 'Decrease lr by a factor of exponential lr_scheduler.', 'eta_min': 'Eta_min in cosine_annealing scheduler.', 'T_max': 'T-max in cosine_annealing scheduler.', 'max_epoch': 'Max epoch num to train the model.', 'warmup_epochs': 'Warmup epochs.', 'weight_decay': 'Weight decay factor.', 'momentum': 'Momentum.', 'loss_scale': 'Static loss scale.', 'label_smooth': 'Whether to use label smooth in CE.', 'label_smooth_factor': 'Smooth strength of original one-hot.', 'log_interval': 'Logging interval steps.', 'ckpt_path': 'Checkpoint save location.', 'ckpt_interval': 'Save checkpoint interval.', 'is_save_on_master': 'Save ckpt on master or all rank, 1 for master, 0 for all ranks.', 'is_distributed': 'Distribute train or not, 1 for yes, 0 for no.', 'bind_cpu': 'Whether bind cpu when distributed training.', 'device_num': 'Device numbers per server', 'rank': 'Local rank of distributed.', 'group_size': 'World size of device.', 'need_profiler': 'Whether use profiler. 0 for no, 1 for yes.', 'resize_rate': 'Resize rate for multi-scale training.', 'ann_file': 'path to annotation', 'each_multiscale': 'Apply multi-scale for each scale', 'labels': 'the label of train data', 'multi_label': 'use multi label to nms', 'multi_label_thresh': 'multi label thresh', 'train_img_dir': 'relative path of training image directory to data_dir', 'train_ann_file': 'relative path of training annotation file to data_dir', 'pretrained': 'model_path, local pretrained model to load', 'log_path': 'checkpoint save location', 'save_prefix': '../eval_parallel', 'run_eval': 'Whether enable validation after a training epoch', 'eval_epoch_interval': 'Epoch interval to do validation', 'eval_start_epoch': 'After which epoch, start to do validatation', 'eval_parallel': 'Whether enable parallel evaluation to accelerate the validataion process', 'val_img_dir': 'relative path of validation image directory to data_dir', 'val_ann_file': 'relative path of validataion annotation file to data_dir', 'device_id': 'Device id for export', 'batch_size': 'batch size for export', 'testing_shape': 'shape for test', 'ckpt_file': 'Checkpoint file path for export', 'file_name': 'output file name for export', 'file_format': 'file format for export', 'result_files': 'path to 310 infer result floder'}
+Traceback (most recent call last):
+  File "train.py", line 213, in <module>
+    run_train()
+  File "/public/home/wangjh/chn/code/yolo/models/official/cv/YOLOv5/model_utils/moxing_adapter.py", line 168, in wrapped_func
+    run_func(*args, **kwargs)
+  File "train.py", line 130, in run_train
+    train_preprocess()
+  File "train.py", line 59, in train_preprocess
+    mindspore.set_context(mode=0, device_target=config.device_target, device_id=device_id)
+  File "/public/home/wangjh/miniconda3/envs/chn/lib/python3.8/site-packages/mindspore/_checkparam.py", line 1313, in wrapper
+    return func(*args, **kwargs)
+  File "/public/home/wangjh/miniconda3/envs/chn/lib/python3.8/site-packages/mindspore/context.py", line 1493, in set_context
+    ctx.set_device_target(kwargs['device_target'])
+  File "/public/home/wangjh/miniconda3/envs/chn/lib/python3.8/site-packages/mindspore/context.py", line 387, in set_device_target
+    self.set_param(ms_ctx_param.device_target, target)
+  File "/public/home/wangjh/miniconda3/envs/chn/lib/python3.8/site-packages/mindspore/context.py", line 175, in set_param
+    self._context_handle.set_param(param, value)
+RuntimeError: Unsupported device target Ascend. This process only supports one of the ['CPU']. Please check whether the Ascend environment is installed and configured correctly, and check whether current mindspore wheel package was built with "-e Ascend".
+
+----------------------------------------------------
+- C++ Call Stack: (For framework developers)
+----------------------------------------------------
+mindspore/core/utils/ms_context.cc:371 SetDeviceTargetFromInner
+

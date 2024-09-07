@@ -1,0 +1,1 @@
+python resnet50_c10.py --checkpoint_path ./resnet_1-90_937.ckpt --dataset_path ./cifar-10-batches-bin/
