@@ -1,0 +1,132 @@
+#include "matmul_mlu_kernel.h"
+
+#define ROUND 256
+__mlu_entry__ void MatMul(size_t *outputDDR, size_t *input1DDR, size_t *input2DDR, size_t m, size_t k, size_t n) {
+  size_t ret;
+  __bang_printf("m=%d,k=%d,n=%d\n", m, k, n);
+  for (size_t i = 0; i < m; i++) {
+    for (size_t j = 0; j < n; j++) {
+      ret = 0;
+      for (size_t t = 0; t < k; t++) {
+        ret += input1DDR[i * k + t] * input2DDR[t * n + j];
+      }
+      outputDDR[i * n + j] = ret;
+    }
+  }
+}
+
+#define IN_CHANNEL 128
+#define IN_HEIGHT 9
+#define IN_WIDTH 8
+#define FILTER_HEIGHT 2
+#define FILTER_WIDTH 3
+#define STRIDE_HEIGHT 4
+#define STRIDE_WIDTH 3
+#define OUT_CHANNEL 64
+#define POS 2
+
+__mlu_entry__ void gemm16Kernel(half *outputDDR, size_t *input1DDR, size_t *input2DDR,
+                                uint32_t m, uint32_t k, uint32_t n, int16_t pos) {
+	__nram__ half input1NRAM[256*256];
+	__nram__ half input2NRAM[256*256];
+	__nram__ half outputNRAM[256*256];
+	__memcpy(input1NRAM, input1DDR, m * k * sizeof(half), GDRAM2NRAM);  //�� GDRAM����NRAM
+	__memcpy(input2NRAM, input2DDR, k * n * sizeof(half), GDRAM2NRAM);
+
+    for (uint32_t i = 0; i < m; i++) {
+        for (uint32_t j = 0; j < n; j++) {
+            half ret = 0.0;
+            half c = 0.0;
+            for (uint32_t t = 0; t < k; t++) {
+                half v = input1NRAM[i*k+t] * input2NRAM[t*n+j];
+                half y = v - c;
+                half temp = ret + y;
+                c = ( temp - ret) - y;
+                ret = temp;
+            }
+            outputNRAM[i*n+j] = ret;
+        }
+    }
+	__memcpy(outputDDR, outputNRAM, m * n * sizeof(half), NRAM2GDRAM);  //������������GDRAM
+}
+
+template <typename T>
+void MatMul_mlu_kernel(T *a, T *b, T *output, T M, T K, T N) {
+  cnrtQueue_t queue;
+  CNRT_CHECK(cnrtSetDevice(0));
+  CNRT_CHECK(cnrtQueueCreate(&queue));
+  cnrtDim3_t dim = {1, 1, 1};
+  cnrtFunctionType_t ktype = CNRT_FUNC_TYPE_BLOCK;
+  cnrtNotifier_t start, end;
+  CNRT_CHECK(cnrtNotifierCreate(&start));
+  CNRT_CHECK(cnrtNotifierCreate(&end));
+
+  T *mlu_c;
+  T *mlu_a;
+  T *mlu_b;
+
+  CNRT_CHECK(cnrtMalloc((void **)&mlu_c, M * N * sizeof(T)));
+  CNRT_CHECK(cnrtMalloc((void **)&mlu_a, M * K * sizeof(T)));
+  CNRT_CHECK(cnrtMalloc((void **)&mlu_b, K * N * sizeof(T)));
+
+  CNRT_CHECK(cnrtMemcpy(mlu_a, a, M * K * sizeof(T), cnrtMemcpyHostToDev));
+  CNRT_CHECK(cnrtMemcpy(mlu_b, b, K * N * sizeof(T), cnrtMemcpyHostToDev));
+
+  CNRT_CHECK(cnrtPlaceNotifier(start, queue));
+  MatMul<<<dim, ktype, queue>>>(mlu_c, mlu_a, mlu_b, M, K, N);
+  CNRT_CHECK(cnrtPlaceNotifier(end, queue));
+
+  cnrtQueueSync(queue);
+  CNRT_CHECK(cnrtMemcpy(output, mlu_c, M * N * sizeof(T), cnrtMemcpyDevToHost));
+  //output = reinterpret_cast<size_t *>(output_addr[0]);
+  float timeTotal;
+  CNRT_CHECK(cnrtNotifierDuration(start, end, &timeTotal));
+  printf("Total Time: %.3f ms\n", timeTotal / 1000.0);
+
+  CNRT_CHECK(cnrtQueueDestroy(queue));
+
+  cnrtFree(mlu_c);
+  cnrtFree(mlu_a);
+  cnrtFree(mlu_b);
+  printf("mlu kernel start!\n");
+}
+
+__mlu_entry__ void col2im(float* input,int matmul_dim0, int matmul_dim1, int h, int w, int source_shape0, int kernel_shape0) {
+  float* transposedMatrix = new float[matmul_dim0*matmul_dim1];
+  float* transposedMatrix_temp = new float[matmul_dim0*matmul_dim1];
+
+  for (int i = 0; i < matmul_dim1; i++) {
+    for (int j = 0; j < matmul_dim0; j++) {
+          transposedMatrix[i * matmul_dim0 + j] = input[j * matmul_dim1 + i];
+    }
+  }
+  int newindex = 0;
+  for(int i=0; i< source_shape0; i++){
+    for(int j=0;j< kernel_shape0 * source_shape0;j += source_shape0){
+      for(int k=0;k<h*w;k++){
+        transposedMatrix_temp[newindex++] = transposedMatrix[j*h*w + i*h*w + k];
+      }
+    }
+  }
+  __bang_printf("___________MLU res 1___________");
+   for (int i = 1; i <= matmul_dim0*matmul_dim1; i++)
+   {
+    __bang_printf(" %f |",transposedMatrix_temp[i-1]);
+    if(i % (h*w) == 0) __bang_printf("\n");
+   }
+}
+
+void testOp(float* input,int matmul_dim0, int matmul_dim1, int h, int w, int source_shape0, int kernel_shape0){
+  cnrtQueue_t queue;
+  CNRT_CHECK(cnrtSetDevice(0));
+  CNRT_CHECK(cnrtQueueCreate(&queue));
+  cnrtDim3_t dim = {1, 1, 1};
+  cnrtFunctionType_t ktype = CNRT_FUNC_TYPE_BLOCK;
+  col2im<<<dim, ktype, queue>>>(input, matmul_dim0, matmul_dim1, h, w, source_shape0, kernel_shape0);
+  cnrtQueueSync(queue);
+  CNRT_CHECK(cnrtQueueDestroy(queue));
+  printf("mlu kernel start!\n");
+
+}
+// ��ʽʵ����ģ�庯��
+template void MatMul_mlu_kernel<size_t>(size_t *a, size_t *b, size_t *output, size_t M, size_t K, size_t N);

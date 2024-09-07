@@ -469,8 +469,22 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     target_link_libraries(mindspore_backend PRIVATE mindspore::pybind11_module)
 endif()
 
+# check `NEUWARE_HOME` env
+message("NEUWARE_HOME PATH:/usr/local/neuware")
+set(NEUWARE_ROOT_DIR "/usr/local/neuware")
+
+# setup cmake search path
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
+  "${CMAKE_SOURCE_DIR}/cmake"
+  "/usr/local/neuware/cmake"
+  "/usr/local/neuware/cmake/modules"
+)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+include_directories("${NEUWARE_ROOT_DIR}/include")
+add_subdirectory(plugin/device/cpu/mluop)
+
 target_link_libraries(mindspore_backend PRIVATE mindspore_core mindspore_common proto_input mindspore::protobuf)
-target_link_libraries(mindspore_backend PRIVATE securec)
+target_link_libraries(mindspore_backend PRIVATE securec mluop cnnl cnbin)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set_target_properties(mindspore_backend PROPERTIES MACOSX_RPATH ON)
